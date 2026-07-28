@@ -1,0 +1,52 @@
+[
+  {
+    "site": "creepjs",
+    "url": "https://abrahamjuliot.github.io/creepjs/",
+    "metrics": {
+      "__pageErrors": [],
+      "__polls": 8,
+      "__readyState": "complete",
+      "__settleMs": 5767,
+      "__settled": true,
+      "boldFailCount": 2,
+      "fingerprintId": "FP ID: 03ee2303e49501077a6e3496f13feda144c459c4fdfd1d9f9fc23549b8713ae5",
+      "fuzzyFingerprint": "Fuzzy: 33a88841f32812511f0942f7cd955b01ff246cf668de3afec5ca000000000000",
+      "headlessFlags": {
+        "headless": [],
+        "likeHeadless": [
+          "prefersLightColor",
+          "noContentIndex",
+          "noContactsManager",
+          "noDownlinkMax"
+        ],
+        "stealth": []
+      },
+      "headlessPct": 0,
+      "lies": [],
+      "liesCount": 0,
+      "likeHeadlessPct": 25,
+      "lowEntropy": [
+        "timezone",
+        "intl"
+      ],
+      "rendered": true,
+      "stealthPct": 0
+    },
+    "elapsedMs": 10025
+  },
+  {
+    "site": "browserscan",
+    "url": "https://www.browserscan.net/bot-detection",
+    "metrics": {
+      "__pageErrors": [],
+      "__polls": 13,
+      "__readyState": "complete",
+      "__settleMs": 6042,
+      "__settled": true,
+      "excerpt": "blog Antidetect Browser Utilities EN Sign In Home \u003e Bot Detection Test Results: Normal Webdriver User-Agent CDP Navigator Browser bot detection guide BrowserScan detects automated activities on scripts or browsers. It analyzes various browser properties to determine whether the browser environment is controlled by a robot. Various human-machine verification products such as Cloudflare Turnstile an",
+      "passed": true,
+      "verdict": "Normal"
+    },
+    "elapsedMs": 11797
+  }
+]

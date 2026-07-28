@@ -1,0 +1,183 @@
+/**
+ * 全局基底：reset 与原生控件样式。
+ *
+ * 表单控件在这里统一定型，组件内不再各写一份 background/border/padding。
+ * 之前 5 个组件里有 5 份 input 样式且 padding 互不相同（6/9、8/10、7/11），
+ * 同一屏出现两种高度的输入框就是这么来的。
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--c-canvas);
+  /* 桌面壳里由 WebView 承载，禁掉整页橡皮筋滚动 */
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+  background: var(--c-canvas);
+  color: var(--c-text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* 数字统一等宽，端口、计数、耗时在列表里纵向对齐 */
+.tnum,
+.count,
+.seed {
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  line-height: var(--lh-tight);
+}
+
+p {
+  margin: 0;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--c-sunken);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  padding: 1px 5px;
+}
+
+/* ---------- 表单控件 ---------- */
+
+input[type='text'],
+input[type='password'],
+input[type='number'],
+input:not([type]),
+select,
+textarea {
+  width: 100%;
+  background: var(--c-sunken);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-sm);
+  padding: 7px 10px;
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: var(--fs-base);
+  line-height: 1.4;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--c-text-faint);
+}
+
+input:hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+  border-color: var(--c-accent);
+}
+
+textarea {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-base);
+  resize: vertical;
+}
+
+select {
+  cursor: pointer;
+}
+
+/* 复选与单选不该被上面的 width:100% 拉宽 */
+input[type='checkbox'],
+input[type='radio'] {
+  width: auto;
+  accent-color: var(--c-accent);
+  cursor: pointer;
+  margin: 0;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+fieldset {
+  margin: 0;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-sm);
+  padding: var(--sp-3);
+}
+
+legend {
+  padding: 0 var(--sp-1);
+  font-size: var(--fs-base);
+  color: var(--c-text-muted);
+}
+
+/*
+ * 焦点环统一走 :focus-visible。键盘用户能看到,鼠标点击不会留下环。
+ * 输入框例外:文本输入用鼠标点进去也需要明确的当前位置提示。
+ */
+:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--c-focus);
+  outline-offset: -1px;
+  border-color: var(--c-accent);
+}
+
+/* ---------- 滚动条 ---------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--c-border-strong);
+  border: 2px solid transparent;
+  border-radius: var(--r-pill);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--c-text-faint);
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

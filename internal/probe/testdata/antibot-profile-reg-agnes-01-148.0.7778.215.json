@@ -1,0 +1,46 @@
+[
+  {
+    "site": "cloudflare-challenge",
+    "url": "https://www.scrapingcourse.com/cloudflare-challenge",
+    "metrics": {
+      "__pageErrors": [],
+      "__polls": 84,
+      "__readyState": "complete",
+      "__settleMs": 45088,
+      "__settled": false,
+      "blockedTexts": [],
+      "bodyLen": 314,
+      "challengeSelectors": [
+        "rayId"
+      ],
+      "excerpt": "www.scrapingcourse.com Sicherheitsüberprüfung wird durchgeführt Diese Website nutzt einen Sicherheitsservice, um sich vor böswilligen Bots zu schützen. Diese Seite wird angezeigt, solange die Website überprüft, dass Sie kein Bot sind. Ray ID: a223f488ed813857 Performance und Sicherheit von Cloudflar",
+      "finalURL": "https://www.scrapingcourse.com/cloudflare-challenge",
+      "passed": false,
+      "title": "Nur einen Moment…"
+    },
+    "elapsedMs": 46706
+  },
+  {
+    "site": "datadome",
+    "url": "https://datadome.co/",
+    "metrics": {
+      "__pageErrors": [],
+      "__polls": 89,
+      "__readyState": "complete",
+      "__settleMs": 45248,
+      "__settled": false,
+      "bodyLen": 0,
+      "challengeSelectors": [
+        "iframe[src*=\"captcha-delivery.com\"]"
+      ],
+      "challengeTexts": [],
+      "excerpt": "",
+      "finalHost": "datadome.co",
+      "finalURL": "https://datadome.co/",
+      "onCaptchaDomain": false,
+      "passed": false,
+      "title": "datadome.co"
+    },
+    "elapsedMs": 47204
+  }
+]

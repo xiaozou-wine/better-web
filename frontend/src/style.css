@@ -1,0 +1,7 @@
+/*
+ * 全局样式入口。实际内容拆到 styles/ 下：
+ *   tokens.css —— 设计变量（亮暗两套语义色 + 尺度）
+ *   base.css   —— reset 与原生控件基底
+ */
+@import './styles/tokens.css';
+@import './styles/base.css';

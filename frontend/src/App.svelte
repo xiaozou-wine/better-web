@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     api,
+    geoSourceLabels,
     kindLabels,
     stateLabels,
     type GroupTreeInfo,
@@ -521,10 +522,28 @@
                     {#if p.kind === 'fingerprint' && p.fingerprint}
                       <dt>机型</dt>
                       <dd>{p.fingerprint.device.label}</dd>
-                      <dt>时区</dt>
-                      <dd>{p.fingerprint.timezone}</dd>
-                      <dt>语言</dt>
-                      <dd>{p.fingerprint.locale}</dd>
+                      <!-- 时区与语言合成一行并标注来源：这两个值在停止态是
+                           上次启动的实测缓存，不标注的话用户会当成当前事实。
+                           default 表示从未启动过，那时它们只是内核兜底值。 -->
+                      <dt>时区 / 语言</dt>
+                      <dd>
+                        {p.fingerprint.timezone} / {p.fingerprint.locale}
+                        {#if p.geoSource}
+                          <span
+                            class="src"
+                            class:stale={p.geoSource === 'lastRun'}
+                            class:unknown={p.geoSource === 'default'}
+                          >
+                            {geoSourceLabels[p.geoSource] ?? p.geoSource}
+                          </span>
+                        {/if}
+                      </dd>
+                      {#if p.geoSource === 'default'}
+                        <dt></dt>
+                        <dd class="srchint">
+                          启动时会按代理出口 IP 自动对齐，实际值可能与此不同。
+                        </dd>
+                      {/if}
                       <dt>种子</dt>
                       <dd class="tnum">{p.seed}</dd>
                     {:else}
@@ -911,6 +930,35 @@
     color: var(--c-text-muted);
     min-width: 0;
     word-break: break-word;
+  }
+
+  /* 来源标记。默认中性——运行中和手动指定都是可信的当前值。 */
+  .src {
+    display: inline-block;
+    margin-left: var(--sp-2);
+    padding: 0 6px;
+    border: 1px solid var(--c-border-strong);
+    border-radius: var(--r-pill);
+    font-size: var(--fs-xs);
+    color: var(--c-text-faint);
+    white-space: nowrap;
+  }
+  /* 上次实测：值是真的，但可能已过期，用警示色提醒代理出口会变。 */
+  .src.stale {
+    border-color: var(--c-warn);
+    background: var(--c-warn-soft);
+    color: var(--c-warn-text);
+  }
+  /* 从未启动：显示的是兜底值，与真实出口无关，比过期更需要警示。 */
+  .src.unknown {
+    border-color: var(--c-warn);
+    background: var(--c-warn-soft);
+    color: var(--c-warn-text);
+  }
+  .srchint {
+    font-size: var(--fs-xs);
+    color: var(--c-text-faint);
+    line-height: var(--lh-base);
   }
 
   .ops {

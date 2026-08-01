@@ -100,6 +100,13 @@ type ProfileView struct {
 	State     session.State  `json:"state"`
 	// Fingerprint 是该 profile 当前会推导出的指纹预览，便于界面核对一致性。
 	Fingerprint *model.Fingerprint `json:"fingerprint,omitempty"`
+	// GeoSource 说明 Fingerprint 里的时区与语言是哪来的，界面需据此区分
+	// "浏览器此刻在用的值"与"上次启动实测到的值"——两者在停止态看起来
+	// 一模一样，不标注的话用户无法判断眼前这行是否还成立。
+	//
+	// 取值：live（运行中会话）、override（用户手填）、
+	// lastRun（上次启动实测）、default（内核兜底，从未启动过）。
+	GeoSource GeoSource `json:"geoSource,omitempty"`
 
 	// Exit 是本次会话实际的出口画像，仅在运行中且经代理时有值。
 	// 与 Fingerprint 的区别：那是配置预览，这是运行时事实。
@@ -146,12 +153,59 @@ func (s *Service) toView(p *model.Profile) ProfileView {
 		Exit:     st.Exit,
 		Warnings: st.Warnings,
 	}
-	if p.Kind == model.KindFingerprint {
-		fp := fingerprint.DeriveWithDeviceLabel(
-			p.Seed, p.GeoOverride, p.DeviceLabel, p.KernelVersion)
-		v.Fingerprint = &fp
-	}
+	v.Fingerprint, v.GeoSource = displayFingerprint(p, st.Fingerprint)
 	return v
+}
+
+// GeoSource 标识指纹里的时区与语言来自哪一级。
+type GeoSource string
+
+const (
+	// GeoSourceLive 是运行中会话的实际值，即浏览器此刻在用的。
+	GeoSourceLive GeoSource = "live"
+	// GeoSourceOverride 是用户手填的地理覆盖。
+	GeoSourceOverride GeoSource = "override"
+	// GeoSourceLastRun 是上次启动经出口 IP 实测到的值。代理出口可能已经变了，
+	// 界面须提示这一点，否则用户会当成当前事实。
+	GeoSourceLastRun GeoSource = "lastRun"
+	// GeoSourceDefault 是内核兜底值，表示该 profile 从未成功启动过，
+	// 真实出口地未知。
+	GeoSourceDefault GeoSource = "default"
+)
+
+// displayFingerprint 决定详情页展示哪一份指纹。
+//
+// 地理信息按三级优先取，因为时区与语言只有启动时才由出口 IP 反查得出，
+// 而界面在停止态也要显示一个不误导人的值：
+//
+//  1. live：运行中会话的实际指纹，就是浏览器此刻在用的那份
+//  2. GeoOverride：用户手填的，明确表达"出口在这里"
+//  3. LastGeo：上次启动实测到的出口地理
+//
+// 三者都没有才退回内核兜底（en-US / America/New_York）。少了第 3 级时，
+// 德国出口的 profile 一停止就显示 en-US，而浏览器里明明是德语，
+// 用户会误判成指纹没生效——这正是加 LastGeo 的起因。
+//
+// 注意这只影响界面展示。启动一律重新反查出口，绝不用 LastGeo 组装命令行：
+// 代理出口会变，拿上次的值会让时区与真实出口静默错位。
+func displayFingerprint(p *model.Profile, live *model.Fingerprint) (*model.Fingerprint, GeoSource) {
+	if p.Kind != model.KindFingerprint {
+		return nil, ""
+	}
+	if live != nil {
+		return live, GeoSourceLive
+	}
+
+	g, src := p.GeoOverride, GeoSourceOverride
+	if g == nil {
+		g, src = p.LastGeo, GeoSourceLastRun
+	}
+	if g == nil {
+		src = GeoSourceDefault
+	}
+	fp := fingerprint.DeriveWithDeviceLabel(
+		p.Seed, g, p.DeviceLabel, p.KernelVersion)
+	return &fp, src
 }
 
 // CreateRequest 是创建 profile 的入参。
@@ -457,6 +511,11 @@ func (s *Service) Start(ctx context.Context, id string) (session.Status, error) 
 	// 使用时间只用于列表排序，写失败不影响会话，记录后继续。
 	if err := s.store.TouchLastUse(id, time.Now()); err != nil {
 		return st, nil
+	}
+	// 缓存本次实测到的出口地理，供停止后的界面预览。写失败不影响会话：
+	// 缺了它界面退回按配置推导，只是预览不准，不改变浏览器的实际行为。
+	if st.Geo != nil {
+		_ = s.store.TouchLastGeo(id, st.Geo)
 	}
 	return st, nil
 }

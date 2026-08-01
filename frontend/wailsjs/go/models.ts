@@ -325,6 +325,7 @@ export namespace app {
 	    lastUseAt: any;
 	    state: string;
 	    fingerprint?: model.Fingerprint;
+	    geoSource?: string;
 	    exit?: geo.ExitInfo;
 	    warnings?: string[];
 	
@@ -354,6 +355,7 @@ export namespace app {
 	        this.lastUseAt = this.convertValues(source["lastUseAt"], null);
 	        this.state = source["state"];
 	        this.fingerprint = this.convertValues(source["fingerprint"], model.Fingerprint);
+	        this.geoSource = source["geoSource"];
 	        this.exit = this.convertValues(source["exit"], geo.ExitInfo);
 	        this.warnings = source["warnings"];
 	    }

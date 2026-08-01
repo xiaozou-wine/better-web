@@ -209,3 +209,17 @@ export const kindLabels: Record<string, string> = {
   daily: '日常',
   fingerprint: '指纹',
 }
+
+/**
+ * 指纹里的时区语言来自哪一级，与 Go 侧 app.GeoSource 对应。
+ *
+ * 必须在界面上区分：停止态显示的是上次启动实测到的值，代理出口可能已经变了，
+ * 不标注的话用户会当成当前事实。而 default 表示从未成功启动过，那两行只是
+ * 内核兜底值，与真实出口无关。
+ */
+export const geoSourceLabels: Record<string, string> = {
+  live: '运行中实测',
+  override: '手动指定',
+  lastRun: '上次启动实测',
+  default: '未知（从未启动）',
+}

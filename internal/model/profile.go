@@ -111,6 +111,17 @@ type Profile struct {
 	// GeoOverride 非空时跳过出口 IP 反查，直接采用此地理信息。
 	GeoOverride *Geo `json:"geoOverride,omitempty"`
 
+	// LastGeo 是上次启动时经代理出口 IP 实测到的地理信息，仅供界面预览。
+	//
+	// 存在的理由：时区与语言在启动时才由出口 IP 反查得出，停止态无从得知。
+	// 没有这个字段时，界面只能显示 en-US / America/New_York 兜底值——
+	// 德国出口的 profile 停止后显示 en-US，用户会误判成指纹配错了。
+	//
+	// **绝不参与启动决策**：启动一律重新反查，因为代理出口会变（住宅代理
+	// 尤其如此），拿上次的值组装命令行会让时区与真实出口静默错位，
+	// 那正是本项目最要避免的矛盾。仅由 app 层在启动成功后回写。
+	LastGeo *Geo `json:"lastGeo,omitempty"`
+
 	// KernelVersion 锁定该 profile 使用的内核版本。留空表示用当前默认内核。
 	// 锁定版本可避免内核升级导致指纹漂移。
 	KernelVersion string `json:"kernelVersion,omitempty"`

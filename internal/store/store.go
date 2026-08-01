@@ -79,6 +79,9 @@ var migrations = []string{
 	// use_system_browser 让日常 profile 走系统已装的官方 Chrome。
 	// 默认 0：已有 profile 一律沿用指纹内核，升级不改变任何现有行为。
 	`ALTER TABLE profiles ADD COLUMN use_system_browser INTEGER NOT NULL DEFAULT 0`,
+	// last_geo 缓存上次启动实测到的出口地理，仅供停止态的界面预览。
+	// 默认 NULL：没启动过的 profile 无实测数据，界面退回按配置推导。
+	`ALTER TABLE profiles ADD COLUMN last_geo TEXT`,
 	// 索引必须建在这里而不是 schema 里：schema 先于 migrate 执行，
 	// 而旧库的 profiles 表已存在（CREATE TABLE IF NOT EXISTS 不生效）
 	// 且还没有 grp 列，在 schema 阶段建索引会因列不存在而失败。
@@ -196,6 +199,10 @@ func (s *Store) Save(p *model.Profile) error {
 	if err != nil {
 		return fmt.Errorf("序列化启动页配置失败: %w", err)
 	}
+	lastGeoJSON, err := marshalOptional(p.LastGeo)
+	if err != nil {
+		return fmt.Errorf("序列化上次出口地理失败: %w", err)
+	}
 
 	now := time.Now()
 	if p.CreatedAt.IsZero() {
@@ -206,8 +213,9 @@ func (s *Store) Save(p *model.Profile) error {
 	_, err = s.db.Exec(`
 		INSERT INTO profiles (id, name, kind, seed, profile_dir, proxy, geo_override,
 			kernel_version, extra_args, notes, created_at, updated_at, last_use_at,
-			disable_spoofing, grp, tags, device_label, startup, use_system_browser)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			disable_spoofing, grp, tags, device_label, startup, use_system_browser,
+			last_geo)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET
 			name=excluded.name, kind=excluded.kind, seed=excluded.seed,
 			profile_dir=excluded.profile_dir, proxy=excluded.proxy,
@@ -217,11 +225,13 @@ func (s *Store) Save(p *model.Profile) error {
 			disable_spoofing=excluded.disable_spoofing,
 			grp=excluded.grp, tags=excluded.tags,
 			device_label=excluded.device_label, startup=excluded.startup,
-			use_system_browser=excluded.use_system_browser`,
+			use_system_browser=excluded.use_system_browser,
+			last_geo=excluded.last_geo`,
 		p.ID, p.Name, string(p.Kind), p.Seed, p.ProfileDir, proxyJSON, geoJSON,
 		p.KernelVersion, argsJSON, p.Notes,
 		p.CreatedAt.UnixMilli(), p.UpdatedAt.UnixMilli(), unixMilliOrZero(p.LastUseAt),
-		spoofJSON, p.Group, tagsJSON, p.DeviceLabel, startupJSON, p.UseSystemBrowser)
+		spoofJSON, p.Group, tagsJSON, p.DeviceLabel, startupJSON, p.UseSystemBrowser,
+		lastGeoJSON)
 	if err != nil {
 		return fmt.Errorf("保存 profile %q 失败: %w", p.Name, err)
 	}
@@ -281,6 +291,22 @@ func (s *Store) TouchLastUse(id string, at time.Time) error {
 	_, err := s.db.Exec(`UPDATE profiles SET last_use_at = ? WHERE id = ?`, at.UnixMilli(), id)
 	if err != nil {
 		return fmt.Errorf("更新 profile %s 的使用时间失败: %w", id, err)
+	}
+	return nil
+}
+
+// TouchLastGeo 记录本次启动实测到的出口地理，供停止态的界面预览。
+//
+// 单独一条 UPDATE 而非走 Save：Save 会重写全部字段，而调用方手里的
+// Profile 可能已被别处改过，整行回写会覆盖掉那些改动。
+func (s *Store) TouchLastGeo(id string, g *model.Geo) error {
+	val, err := marshalOptional(g)
+	if err != nil {
+		return fmt.Errorf("序列化 profile %s 的出口地理失败: %w", id, err)
+	}
+	_, err = s.db.Exec(`UPDATE profiles SET last_geo = ? WHERE id = ?`, val, id)
+	if err != nil {
+		return fmt.Errorf("更新 profile %s 的出口地理失败: %w", id, err)
 	}
 	return nil
 }

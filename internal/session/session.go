@@ -7,13 +7,16 @@
 //  4. 组装命令行并启动内核
 //
 // 第 2 步失败时默认中止启动而非静默回退：时区与真实出口不符，
-// 比不启动更糟。
+// 比不启动更糟。例外是"代理本身可达但出口地查询服务全部失败"（如
+// ipinfo.io 与 ip-api.com 同时超时）——此时降级为警告继续启动，
+// 不让查询服务的一次抖动废掉一个本来可用的代理，详见 resolveGeo。
 package session
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"sync"
@@ -333,7 +336,20 @@ func (m *Manager) resolveGeo(ctx context.Context, p *model.Profile, f *proxy.For
 			}}, nil
 		}
 		if m.StrictGeo {
-			return resolved{}, fmt.Errorf("查询代理出口地失败，中止启动以避免时区与出口地矛盾: %w", err)
+			// 查询服务抖动不应废掉一个本来可用的代理：所有出口地查询服务
+			// 都失败（如 ipinfo.io 与 ip-api.com 同时超时）时，代理本身的
+			// 可用性并未被证伪——失败的是"出口地反查"这一附加步骤，不是代理。
+			// 此时中止启动，等于让查询服务的一次抖动直接浪费掉整轮注册的
+			// 浏览器启动（实测白等 30 秒后换代理）。只有代理本身连不通
+			// （见 proxyUnreachable）才继续中止；其余情况降级为警告继续，
+			// 时区语言走"未知"兜底（DeriveForKernel 对 nil geo 回退到美国东部）。
+			if proxyUnreachable(err) {
+				return resolved{}, fmt.Errorf("查询代理出口地失败，中止启动以避免时区与出口地矛盾: %w", err)
+			}
+			return resolved{warnings: []string{
+				fmt.Sprintf("未能确认代理出口位置（%v），时区语言沿用默认兜底，"+
+					"若真实出口地与之不符可能构成风险信号", err),
+			}}, nil
 		}
 		g := geo.Fallback()
 		return resolved{geo: &g}, nil
@@ -341,6 +357,44 @@ func (m *Manager) resolveGeo(ctx context.Context, p *model.Profile, f *proxy.For
 
 	g := geo.Resolve(info.Geo.CountryCode, info.Geo.Region)
 	return resolved{geo: &g, exit: info, warnings: warns}, nil
+}
+
+// proxyUnreachable 判断出口地查询失败是否源于代理本身连不通。
+//
+// 两类"全部查询服务失败"需要区别对待：代理连不通时，每次请求都在建连
+// 阶段失败，错误链里出现 Op 为 "dial"（HTTP 代理）或 "socks connect"
+// （SOCKS5 握手）的 net.OpError，如 connection refused；查询服务抖动则
+// 发生在隧道已建立之后，错误是超时、非 200 或响应异常，不含建连阶段的
+// OpError。前者说明代理不可用，该失败就失败；后者只是附加探测失败，
+// 不应废掉一个本来可用的代理（见 resolveGeo 的 StrictGeo 分支）。
+func proxyUnreachable(err error) bool {
+	found := false
+	walkErr(err, func(e error) {
+		if op, ok := e.(*net.OpError); ok && (op.Op == "dial" || op.Op == "socks connect") {
+			found = true
+		}
+	})
+	return found
+}
+
+// walkErr 遍历错误链。单值 Unwrap 与多值 Unwrap（errors.Join）都覆盖，
+// 因为 LookupExit 用 errors.Join 聚合各查询服务的错误。
+func walkErr(e error, visit func(error)) {
+	if e == nil {
+		return
+	}
+	visit(e)
+	type unwrapper interface{ Unwrap() error }
+	if ue, ok := e.(unwrapper); ok {
+		walkErr(ue.Unwrap(), visit)
+		return
+	}
+	type multiUnwrapper interface{ Unwrap() []error }
+	if me, ok := e.(multiUnwrapper); ok {
+		for _, sub := range me.Unwrap() {
+			walkErr(sub, visit)
+		}
+	}
 }
 
 // probeExit 经代理查询出口画像，并据 ASN 判定生成风险警告。

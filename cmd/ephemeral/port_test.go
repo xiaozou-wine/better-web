@@ -202,3 +202,40 @@ func portOf(t *testing.T, rawURL string) int {
 	}
 	return port
 }
+
+func TestBuildExtraArgsMinimize(t *testing.T) {
+	// --minimize 应追加 off-screen 窗口位置,把窗口移出可视区(不是 headless)
+	args := buildExtraArgs(0, true)
+	found := false
+	for _, a := range args {
+		if a == "--window-position=-32000,-32000" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("minimize 未追加 window-position,args=%v", args)
+	}
+}
+
+func TestBuildExtraArgsDefaultNoWindowPosition(t *testing.T) {
+	// 默认(不 minimize)不该带 window-position —— 否则所有用户都被移出可视区
+	args := buildExtraArgs(0, false)
+	for _, a := range args {
+		if strings.HasPrefix(a, "--window-position") {
+			t.Errorf("非 minimize 不应带 window-position,args=%v", args)
+		}
+	}
+}
+
+func TestBuildExtraArgsAlwaysHasCDPAndOrigin(t *testing.T) {
+	// 两条基础参数任何模式都不能丢
+	args := buildExtraArgs(9222, false)
+	joined := strings.Join(args, " ")
+	for _, want := range []string{
+		"--remote-debugging-port=9222", "--remote-allow-origins=*",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("缺少 %s,args=%v", want, args)
+		}
+	}
+}

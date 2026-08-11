@@ -20,6 +20,7 @@
 // 用法：
 //
 //	ephemeral --proxy=<代理行> [--cdp-port=N] [--kernel=版本] [--keep-dir]
+//	                  [--minimize]
 //	ephemeral --allow-direct   [--cdp-port=N]
 //
 // 代理行的格式与界面批量导入一致，见 model.ParseProxy：
@@ -102,6 +103,10 @@ func main() {
 		"锁定机型档案 Label，留空按种子抽取")
 	timeout := fs.Duration("timeout", 0,
 		"运行时长上限，到点自动退出。0 表示不限")
+	minimize := fs.Bool("minimize", false,
+		"把浏览器窗口移出可视区，避免批量跑时前台弹窗打扰。"+
+			"不是 headless：指纹完整保留（headless 会拉高可检测的"+
+			" headless 特征）。桌面/脚本用可见窗口的差异只在看不见")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		os.Exit(2)
 	}
@@ -179,12 +184,7 @@ func main() {
 		Proxy:         upstream,
 		KernelVersion: *kernelVer,
 		DeviceLabel:   *deviceLabel,
-		ExtraArgs: []string{
-			fmt.Sprintf("--remote-debugging-port=%d", *cdpPort),
-			// Chrome 111 起拒绝 Origin 不在白名单内的 WebSocket 升级请求，
-			// 而多数 CDP 客户端默认带 Origin，不放行会直接 403 握手失败。
-			"--remote-allow-origins=*",
-		},
+		ExtraArgs:     buildExtraArgs(*cdpPort, *minimize),
 	}
 
 	ctx, stop := signal.NotifyContext(
@@ -270,6 +270,25 @@ func exitDesc(l readyLine) string {
 		return "本机真实 IP（--allow-direct）"
 	}
 	return fmt.Sprintf("%s (%s)", l.ExitIP, l.ExitKind)
+}
+
+// buildExtraArgs 组装追加到内核命令行的原始参数。
+//
+// 单独抽出来是为了能单测 —— 这些参数直接进内核进程，拼错了要么连不上 CDP，
+// 要么（--minimize 场景）把窗口位置搞坏。--window-position=-32000,-32000 是
+// 把窗口移出可视区的惯用值（off-screen 最小化）：窗口还在、指纹完整，
+// 只是看不见、不抢焦点。
+func buildExtraArgs(cdpPort int, minimize bool) []string {
+	args := []string{
+		fmt.Sprintf("--remote-debugging-port=%d", cdpPort),
+		// Chrome 111 起拒绝 Origin 不在白名单内的 WebSocket 升级请求，
+		// 而多数 CDP 客户端默认带 Origin，不放行会直接 403 握手失败。
+		"--remote-allow-origins=*",
+	}
+	if minimize {
+		args = append(args, "--window-position=-32000,-32000")
+	}
+	return args
 }
 
 // sweepStaleDirs 删除上次运行残留的临时目录，返回清理个数。
